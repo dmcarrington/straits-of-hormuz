@@ -28,9 +28,9 @@ export type Difficulty = {
 };
 
 export const DIFFICULTIES: Difficulty[] = [
-  { label: 'Persian Gulf', width: 14, height: 14, mines: 14 },
-  { label: 'Gulf of Oman', width: 18, height: 18, mines: 28 },
-  { label: 'Strait of Hormuz', width: 24, height: 20, mines: 35 },
+  { label: 'Persian Gulf', width: 14, height: 14, mines: 8 },
+  { label: 'Gulf of Oman', width: 18, height: 18, mines: 14 },
+  { label: 'Strait of Hormuz', width: 24, height: 20, mines: 18 },
   { label: 'Custom', width: 0, height: 0, mines: 0 },
 ];
 
@@ -59,26 +59,26 @@ export function generateTerrain(width: number, height: number, difficulty: strin
 
   // Three distinct maps
   if (difficulty === 'Persian Gulf') {
-    // Persian Gulf — wide body of water, Arabian Peninsula south, Iran north
+    // Persian Gulf — wide body of water, Arabian Peninsula takes bottom ~40%
     // Iran (north coast, fills to top edge)
     blit(x => {
-      const j = Math.floor(Math.sin(x * 0.5) * 1.5 + 1);
-      return [0, 3 + j];
+      const j = Math.floor(Math.sin(x * 0.5) * 1.5 + 1.5);
+      return [0, 2 + j];
     });
-    // Saudi/Arabian Peninsula (entire southern half)
+    // Saudi/Arabian Peninsula (southern portion)
     for (let x = 0; x < width; x++) {
-      const baseY = Math.floor(height * 0.55);
+      const baseY = Math.floor(height * 0.65);
       for (let y = baseY; y < height; y++) terrain[y][x] = 'land';
     }
-    // Qatar peninsula (protrudes north from Saudi coast, center)
+    // Qatar peninsula (protrudes north from Saudi coast, center-right)
     blit(x => {
-      const mid = Math.floor(width / 2);
-      if (Math.abs(x - mid) <= 1) return [Math.floor(height * 0.40), Math.floor(height * 0.54)];
-      if (Math.abs(x - mid) === 2) return [Math.floor(height * 0.45), Math.floor(height * 0.54)];
-      return [height, -1]; // off-screen = no draw
+      const mid = Math.floor(width * 0.55);
+      if (Math.abs(x - mid) <= 1) return [Math.floor(height * 0.50), Math.floor(height * 0.64)];
+      if (Math.abs(x - mid) === 2) return [Math.floor(height * 0.55), Math.floor(height * 0.64)];
+      return [height, -1];
     });
-    // Small islands — Bahrain
-    island(Math.floor(width * 0.35), Math.floor(height * 0.50), 1, 1);
+    // Bahrain island
+    island(Math.floor(width * 0.30), Math.floor(height * 0.58), 1, 1);
   } else if (difficulty === 'Strait of Hormuz') {
     // Strait of Hormuz — narrow channel, Iran north, Musandam (Oman) south
     // Iran (north coast, fills to top)
