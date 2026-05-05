@@ -237,7 +237,8 @@ export function revealAllMines(board: Cell[][]): Cell[][] {
 export function checkWin(board: Cell[][]): boolean {
   for (const row of board) {
     for (const cell of row) {
-      if (!cell.isMine && cell.state !== 'revealed') return false;
+      // Only water cells need to be revealed; land cells don't count
+      if (cell.terrain === 'water' && !cell.isMine && cell.state !== 'revealed') return false;
     }
   }
   return true;
