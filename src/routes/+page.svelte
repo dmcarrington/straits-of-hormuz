@@ -72,13 +72,14 @@
     board = [...board];
   }
 
-  function reset() {
+  function backToMenu() {
     if (timer) clearInterval(timer);
-    board = createBoard(difficulty.width, difficulty.height, difficulty.mines);
+    board = [];
     gameOver = false;
     won = false;
     startTime = null;
     elapsed = 0;
+    goto('/');
   }
 
   // React to URL param changes without full reload
@@ -94,7 +95,6 @@
       }
     }
     checkUrl();
-    // Use a lightweight interval to catch browser back/forward navigation
     const interval = setInterval(checkUrl, 200);
     return () => clearInterval(interval);
   });
@@ -127,11 +127,11 @@
     {elapsed}
     onReveal={reveal}
     onFlag={flag}
-    onReset={reset}
+    onReset={backToMenu}
     difficultyLabel={difficulty.label}
   />
   <div class="back-link">
-    <button onclick={reset}>↩ New Mission</button>
+    <button onclick={backToMenu}>↩ New Mission</button>
   </div>
 {/if}
 

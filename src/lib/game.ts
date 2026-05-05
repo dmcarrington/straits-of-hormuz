@@ -44,37 +44,42 @@ export function generateTerrain(width: number, height: number, difficulty: strin
 
   if (height < 6) return terrain;
 
-  // Iran coastline — northern edge with coves/indentations
+  // Iran coastline — northern edge
   const iranY = Math.max(1, Math.floor(height * 0.12));
   for (let x = 0; x < width; x++) {
     const jitter = Math.floor((Math.sin(x * 0.6 + width * 0.3) + 1) * 1.5);
-    const y = Math.min(iranY + jitter, height - 2);
-    terrain[y][x] = 'land';
-    // Occasional inland extension (mountains/jazireh)
-    if ((x % 7 === 0 || x % 11 === 3) && y + 1 < height) {
-      terrain[y + 1][x] = 'land';
+    const coastY = Math.min(iranY + jitter, height - 2);
+    for (let y = 0; y <= coastY; y++) {
+      terrain[y][x] = 'land';
+    }
+    // Occasional mountain/jazireh extensions
+    if ((x % 7 === 0 || x % 11 === 3) && coastY + 1 < height) {
+      terrain[coastY + 1][x] = 'land';
     }
   }
 
-  // Oman/Ras Al Hadd — southern coast, eastern portion
+  // Oman/Ras Al Hadd — southern coast, fills downward to map edge
   const omanBaseY = Math.max(height - 4, Math.floor(height * 0.82));
   for (let x = Math.floor(width * 0.55); x < width; x++) {
     const jitter = Math.floor((Math.sin(x * 0.5 + 1) + 1) * 1.2);
-    const y = Math.max(omanBaseY - jitter, 1);
-    terrain[y][x] = 'land';
-    // Omani mountains extending inland
-    if (x % 9 === 0 && y > 1) {
-      terrain[y - 1][x] = 'land';
+    const coastY = Math.max(omanBaseY - jitter, 1);
+    for (let y = coastY; y < height; y++) {
+      terrain[y][x] = 'land';
+    }
+    if (x % 9 === 0 && coastY > 1) {
+      terrain[coastY - 1][x] = 'land';
     }
   }
 
-  // UAE coast — southwestern portion, southern edge
+  // UAE coast — southwestern portion, fills downward to map edge
   for (let x = 0; x < Math.floor(width * 0.45); x++) {
     const jitter = Math.floor((Math.sin(x * 0.4) + 1) * 1.5);
-    const y = Math.max(omanBaseY - jitter, 1);
-    terrain[y][x] = 'land';
-    if (x % 6 === 0 && y > 1) {
-      terrain[y - 1][x] = 'land';
+    const coastY = Math.max(omanBaseY - jitter, 1);
+    for (let y = coastY; y < height; y++) {
+      terrain[y][x] = 'land';
+    }
+    if (x % 6 === 0 && coastY > 1) {
+      terrain[coastY - 1][x] = 'land';
     }
   }
 
