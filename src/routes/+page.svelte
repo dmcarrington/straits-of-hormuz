@@ -26,7 +26,7 @@
 
   function start(d: Difficulty, _cx: number, _cy: number) {
     difficulty = d;
-    board = createBoard(d.width, d.height, d.mines);
+    board = createBoard(d.width, d.height, d.mines, d.label);
     gameOver = false;
     won = false;
     startTime = null;

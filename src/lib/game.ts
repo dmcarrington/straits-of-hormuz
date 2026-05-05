@@ -35,77 +35,116 @@ export const DIFFICULTIES: Difficulty[] = [
 ];
 
 export function generateTerrain(width: number, height: number, difficulty: string): Terrain[][] {
-  // Real geography of the Strait of Hormuz region
-  // Persian Gulf to the west, Gulf of Oman to the east
-  // Key features: Iranian coast (north), Oman coast (south), UAE coast (southwest)
   const terrain: Terrain[][] = Array.from({ length: height }, () =>
     Array.from({ length: width }, () => 'water' as Terrain)
   );
 
   if (height < 6) return terrain;
 
-  // Iran coastline — northern edge
-  const iranY = Math.max(1, Math.floor(height * 0.12));
-  for (let x = 0; x < width; x++) {
-    const jitter = Math.floor((Math.sin(x * 0.6 + width * 0.3) + 1) * 1.5);
-    const coastY = Math.min(iranY + jitter, height - 2);
-    for (let y = 0; y <= coastY; y++) {
-      terrain[y][x] = 'land';
-    }
-    // Occasional mountain/jazireh extensions
-    if ((x % 7 === 0 || x % 11 === 3) && coastY + 1 < height) {
-      terrain[coastY + 1][x] = 'land';
-    }
-  }
-
-  // Oman/Ras Al Hadd — southern coast, fills downward to map edge
-  const omanBaseY = Math.max(height - 4, Math.floor(height * 0.82));
-  for (let x = Math.floor(width * 0.55); x < width; x++) {
-    const jitter = Math.floor((Math.sin(x * 0.5 + 1) + 1) * 1.2);
-    const coastY = Math.max(omanBaseY - jitter, 1);
-    for (let y = coastY; y < height; y++) {
-      terrain[y][x] = 'land';
-    }
-    if (x % 9 === 0 && coastY > 1) {
-      terrain[coastY - 1][x] = 'land';
-    }
-  }
-
-  // UAE coast — southwestern portion, fills downward to map edge
-  for (let x = 0; x < Math.floor(width * 0.45); x++) {
-    const jitter = Math.floor((Math.sin(x * 0.4) + 1) * 1.5);
-    const coastY = Math.max(omanBaseY - jitter, 1);
-    for (let y = coastY; y < height; y++) {
-      terrain[y][x] = 'land';
-    }
-    if (x % 6 === 0 && coastY > 1) {
-      terrain[coastY - 1][x] = 'land';
-    }
-  }
-
-  // Islands — Qeshm (near strait entrance), Greater Tunb, Lesser Tunb, Sirri
-  const islands: [number, number, number, number][] = [
-    [Math.floor(width * 0.38), Math.floor(height * 0.38), 3, 2],  // Qeshm
-    [Math.floor(width * 0.52), Math.floor(height * 0.45), 2, 1],   // Greater Tunb
-    [Math.floor(width * 0.55), Math.floor(height * 0.42), 1, 1],  // Lesser Tunb
-    [Math.floor(width * 0.68), Math.floor(height * 0.35), 1, 1],  // Sirri
-  ];
-
-  for (const [ix, iy, iw, ih] of islands) {
-    for (let dy = 0; dy < ih && iy + dy < height; dy++) {
-      for (let dx = 0; dx < iw && ix + dx < width; dx++) {
-        if (ix + dx >= 0 && iy + dy >= 0) {
-          terrain[iy + dy][ix + dx] = 'land';
-        }
+  // Draw a land region on the grid given row ranges for each column
+  function blit(coastlineFn: (x: number) => [number, number]) {
+    for (let x = 0; x < width; x++) {
+      const [start, end] = coastlineFn(x);
+      for (let y = start; y <= end; y++) {
+        if (y >= 0 && y < height) terrain[y][x] = 'land';
       }
+    }
+  }
+
+  function island(x: number, y: number, w: number, h: number) {
+    for (let dy = 0; dy < h; dy++)
+      for (let dx = 0; dx < w; dx++)
+        if (y + dy < height && x + dx < width) terrain[y + dy][x + dx] = 'land';
+  }
+
+  // Three distinct maps
+  if (difficulty === 'Persian Gulf') {
+    // Persian Gulf — wide body of water, Arabian Peninsula south, Iran north
+    // Iran (north coast, fills to top edge)
+    blit(x => {
+      const j = Math.floor(Math.sin(x * 0.5) * 1.5 + 1);
+      return [0, 3 + j];
+    });
+    // Saudi/Arabian Peninsula (entire southern half)
+    for (let x = 0; x < width; x++) {
+      const baseY = Math.floor(height * 0.55);
+      for (let y = baseY; y < height; y++) terrain[y][x] = 'land';
+    }
+    // Qatar peninsula (protrudes north from Saudi coast, center)
+    blit(x => {
+      const mid = Math.floor(width / 2);
+      if (Math.abs(x - mid) <= 1) return [Math.floor(height * 0.40), Math.floor(height * 0.54)];
+      if (Math.abs(x - mid) === 2) return [Math.floor(height * 0.45), Math.floor(height * 0.54)];
+      return [height, -1]; // off-screen = no draw
+    });
+    // Small islands — Bahrain
+    island(Math.floor(width * 0.35), Math.floor(height * 0.50), 1, 1);
+  } else if (difficulty === 'Strait of Hormuz') {
+    // Strait of Hormuz — narrow channel, Iran north, Musandam (Oman) south
+    // Iran (north coast, fills to top)
+    blit(x => {
+      const j = Math.floor(Math.sin(x * 0.7) * 1.5 + 1.5);
+      return [0, 3 + j];
+    });
+    // Musandam Peninsula, Oman — protrudes from south about 1/3 from left
+    // Narrow land jutting into the strait from the south
+    blit(x => {
+      const musandamStart = Math.floor(width * 0.25);
+      const musandamEnd = Math.floor(width * 0.55);
+      if (x < musandamStart - 2) return [Math.floor(height * 0.70), height - 1];
+      if (x < musandamStart) return [Math.floor(height * 0.65), height - 1];
+      if (x <= musandamEnd) {
+        // Musandam tip juts up to create the narrow strait
+        const tipHeight = Math.floor(height * 0.45) + Math.floor(Math.sin((x - musandamStart) * 0.5) * 1);
+        return [Math.max(5, tipHeight), height - 1];
+      }
+      // UAE/Oman south coast
+      return [Math.floor(height * 0.72), height - 1];
+    });
+    // Islands in the strait
+    island(Math.floor(width * 0.58), 5, 1, 1);  // Hormuz Island
+    island(Math.floor(width * 0.42), 6, 1, 1);  // Larak Island
+    island(Math.floor(width * 0.35), 4, 2, 1);  // Qeshm
+    // Greater & Lesser Tunb
+    island(Math.floor(width * 0.30), Math.floor(height * 0.52), 1, 1);
+    island(Math.floor(width * 0.68), Math.floor(height * 0.50), 1, 1);
+  } else if (difficulty === 'Gulf of Oman') {
+    // Gulf of Oman — open water, Iran north, Oman south
+    // Iran (north coast)
+    blit(x => {
+      const j = Math.floor(Math.sin(x * 0.4) * 2 + 2);
+      return [0, 4 + j];
+    });
+    // Oman coast (south)
+    for (let x = 0; x < width; x++) {
+      const baseY = Math.floor(height * 0.75);
+      for (let y = baseY; y < height; y++) terrain[y][x] = 'land';
+    }
+    // Jabal Akhdar mountain extension
+    blit(x => {
+      if (x < Math.floor(width * 0.3)) return [height, -1];
+      const j = Math.floor(Math.sin(x * 0.3) * 1);
+      return [Math.floor(height * 0.68) - j, Math.floor(height * 0.74)];
+    });
+    // Muscat peninsula
+    island(Math.floor(width * 0.75), Math.floor(height * 0.62), 2, 2);
+  } else {
+    // Default / Custom — generic map
+    blit(x => {
+      const j = Math.floor(Math.sin(x * 0.6) * 1.5 + 1.5);
+      return [0, 3 + j];
+    });
+    for (let x = 0; x < width; x++) {
+      const baseY = Math.floor(height * 0.80);
+      for (let y = baseY; y < height; y++) terrain[y][x] = 'land';
     }
   }
 
   return terrain;
 }
 
-export function createBoard(width: number, height: number, mines: number, terrain?: Terrain[][]): Cell[][] {
-  const t = terrain ?? generateTerrain(width, height, '');
+export function createBoard(width: number, height: number, mines: number, difficultyLabel?: string): Cell[][] {
+  const t = generateTerrain(width, height, difficultyLabel ?? '');
 
   const board: Cell[][] = Array.from({ length: height }, (_, y) =>
     Array.from({ length: width }, (_, x) => ({
