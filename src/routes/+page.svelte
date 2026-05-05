@@ -35,11 +35,12 @@
   }
 
   function startTimer() {
-    if (!timer) {
-      timer = setInterval(() => {
-        elapsed = getElapsed(startTime);
-      }, 1000);
-    }
+    if (timer) clearInterval(timer);
+    timer = setInterval(() => {
+      if (startTime) {
+        elapsed = Math.floor((Date.now() - startTime) / 1000);
+      }
+    }, 1000);
   }
 
   function reveal(x: number, y: number) {
