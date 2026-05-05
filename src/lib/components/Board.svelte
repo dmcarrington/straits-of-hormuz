@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Cell, CellState } from '$lib/game';
+  import type { Cell } from '$lib/game';
 
   let {
     board,
@@ -40,12 +40,16 @@
     8: '#aaaaaa',
   };
 
-  function cellStyle(cell: Cell): string {
-    if (cell.state === 'hidden') return '';
-    if (cell.isMine) {
-      return gameOver || won ? '#e03030' : '#e03030';
+  function cellBg(cell: Cell): string {
+    if (cell.terrain === 'land') {
+      // Desert land — revealed or hidden, both look like rocky terrain
+      return '#b5a27a';
     }
-    return 'transparent';
+    // Water
+    if (cell.state === 'revealed') {
+      return cell.isMine ? '#4a1010' : '#0d1a2e';
+    }
+    return ''; // use CSS class for hidden water
   }
 
   function formatTime(s: number): string {
@@ -71,13 +75,7 @@
       <span class="hud-value">{mines - flagCount}</span>
     </div>
     <button class="reset-btn" onclick={onReset}>
-      {#if won}
-        😌
-      {:else if gameOver}
-        💥
-      {:else}
-        🚢
-      {/if}
+      {#if won}😌{:else if gameOver}💥{:else}🚢{/if}
     </button>
     <div class="hud-item">
       <span class="hud-label">TIME</span>
@@ -87,6 +85,10 @@
 
   <div class="mission-bar">
     <span class="mission-text">OPERATION: {difficultyLabel.toUpperCase()}</span>
+    <span class="terrain-legend">
+      <span class="legend-water"></span> Water
+      <span class="legend-land"></span> Land
+    </span>
   </div>
 
   <div
@@ -97,24 +99,25 @@
       {#each row as cell, x}
         <button
           class="cell"
-          class:hidden={cell.state === 'hidden'}
+          class:water={cell.terrain === 'water' && cell.state === 'hidden'}
+          class:land={cell.terrain === 'land'}
           class:flagged={cell.state === 'flagged'}
           class:revealed={cell.state === 'revealed'}
           class:mine={cell.isMine && (cell.state === 'revealed' || gameOver)}
           class:misflagged={cell.state === 'flagged' && !cell.isMine && gameOver}
-          style="background: {cellStyle(cell)};"
+          style="background: {cellBg(cell)};"
           onclick={() => handleClick(x, y)}
           oncontextmenu={(e) => handleRightClick(e, x, y)}
-          aria-label="Cell {x},{y}"
+          aria-label="Cell {x},{y} {cell.terrain}"
         >
           {#if cell.state === 'flagged'}
             🚩
           {:else if cell.state === 'revealed' && cell.isMine}
             💥
-          {:else if cell.state === 'revealed' && cell.adjacent > 0}
-            <span style="color: {ADJ_COLORS[cell.adjacent] ?? '#888'}">
-              {cell.adjacent}
-            </span>
+          {:else if cell.state === 'revealed' && cell.adjacent > 0 && cell.terrain === 'water'}
+            <span style="color: {ADJ_COLORS[cell.adjacent] ?? '#888'}">{cell.adjacent}</span>
+          {:else if cell.terrain === 'land' && cell.state === 'revealed'}
+            <span class="land-text">◇</span>
           {/if}
         </button>
       {/each}
@@ -126,9 +129,7 @@
       <div class="overlay-card" class:won class:lost={gameOver && !won}>
         <p class="overlay-title">{won ? 'MISSION COMPLETE' : 'MINE DETONATED'}</p>
         <p class="overlay-sub">{won ? 'All mines successfully charted.' : 'Your fleet hit a mine.'}</p>
-        <button class="overlay-btn" onclick={onReset}>
-          {won ? 'NEW MISSION' : 'TRY AGAIN'}
-        </button>
+        <button class="overlay-btn" onclick={onReset}>{won ? 'NEW MISSION' : 'TRY AGAIN'}</button>
       </div>
     </div>
   {/if}
@@ -201,12 +202,40 @@
   .mission-bar {
     width: 100%;
     max-width: calc(var(--cols) * 28px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .mission-text {
     font-size: 0.65rem;
     letter-spacing: 0.2em;
     color: #4a6080;
+  }
+
+  .terrain-legend {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.6rem;
+    color: #4a6080;
+    align-items: center;
+  }
+
+  .legend-water,
+  .legend-land {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+  }
+
+  .legend-water {
+    background: linear-gradient(135deg, #2a3f6a 0%, #1a2840 100%);
+    border: 1px solid #2a4a7f;
+  }
+
+  .legend-land {
+    background: #b5a27a;
   }
 
   .board {
@@ -234,38 +263,55 @@
     padding: 0;
   }
 
-  .cell.hidden {
-    background: linear-gradient(135deg, #2a3f6a 0%, #1a2840 100%);
-    border: 1px solid #2a4a7f;
+  /* Water — hidden */
+  .cell.water {
+    background: linear-gradient(135deg, #1e3560 0%, #132240 100%);
+    border: 1px solid #2a4a8f;
   }
 
-  .cell.hidden:hover {
-    background: linear-gradient(135deg, #3a5f8a 0%, #2a3870 100%);
+  .cell.water:hover {
+    background: linear-gradient(135deg, #2a4f80 0%, #1a3060 100%);
   }
 
+  /* Land */
+  .cell.land {
+    background: #b5a27a;
+    border: 1px solid #9a8860;
+    cursor: default;
+  }
+
+  .cell.land:hover {
+    background: #c4b488;
+  }
+
+  /* Water — revealed */
   .cell.revealed {
-    background: #0d1520;
     border: 1px solid #151d2a;
     cursor: default;
   }
 
   .cell.flagged {
-    background: linear-gradient(135deg, #2a3f6a 0%, #1a2840 100%);
-    border: 1px solid #2a4a7f;
+    background: linear-gradient(135deg, #1e3560 0%, #132240 100%) !important;
+    border: 1px solid #2a4a8f !important;
   }
 
   .cell.mine {
-    background: #3a1010 !important;
+    background: #4a1010 !important;
     cursor: default;
   }
 
   .cell.misflagged {
-    background: #3a1010 !important;
+    background: #4a1010 !important;
   }
 
   .cell.misflagged::after {
     content: '❌';
-    font-size: 0.7rem;
+    font-size: 0.65rem;
+  }
+
+  .land-text {
+    color: #8a7458;
+    font-size: 0.8rem;
   }
 
   .overlay {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { goto } from '$app/navigation';
   import {
     createBoard,
     floodFill,
@@ -22,7 +23,6 @@
   let startTime = $state<number | null>(null);
   let elapsed = $state(0);
   let timer: ReturnType<typeof setInterval> | null = null;
-  let initialized = $state(false);
 
   function start(d: Difficulty, _cx: number, _cy: number) {
     difficulty = d;
@@ -31,7 +31,6 @@
     won = false;
     startTime = null;
     elapsed = 0;
-    initialized = false;
     if (timer) clearInterval(timer);
   }
 
@@ -45,9 +44,7 @@
 
   function reveal(x: number, y: number) {
     const cell = board[y][x];
-
-    if (cell.state !== 'hidden') return;
-    if (gameOver || won) return;
+    if (cell.state !== 'hidden' || gameOver || won) return;
 
     if (!startTime) {
       startTime = Date.now();
@@ -70,12 +67,7 @@
     if (gameOver || won) return;
     const cell = board[y][x];
     if (cell.state === 'revealed') return;
-
-    if (!startTime) {
-      startTime = Date.now();
-      startTimer();
-    }
-
+    if (!startTime) { startTime = Date.now(); startTimer(); }
     board[y][x].state = cell.state === 'flagged' ? 'hidden' : 'flagged';
     board = [...board];
   }
@@ -87,17 +79,24 @@
     won = false;
     startTime = null;
     elapsed = 0;
-    initialized = false;
   }
 
-  // Accept difficulty from URL params
+  // React to URL param changes without full reload
+  let currentDifficulty = '';
   onMount(() => {
-    const params = new URLSearchParams(window.location.search);
-    const label = params.get('difficulty');
-    if (label) {
-      const d = DIFFICULTIES.find((d) => d.label === label);
-      if (d) start(d, 0, 0);
+    function checkUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const label = params.get('difficulty') || '';
+      if (label !== currentDifficulty) {
+        currentDifficulty = label;
+        const d = DIFFICULTIES.find((d) => d.label === label);
+        if (d) start(d, 0, 0);
+      }
     }
+    checkUrl();
+    // Use a lightweight interval to catch browser back/forward navigation
+    const interval = setInterval(checkUrl, 200);
+    return () => clearInterval(interval);
   });
 
   onDestroy(() => {

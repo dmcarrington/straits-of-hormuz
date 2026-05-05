@@ -1,7 +1,10 @@
 export type CellState = 'hidden' | 'revealed' | 'flagged';
 
+export type Terrain = 'water' | 'land';
+
 export interface Cell {
   state: CellState;
+  terrain: Terrain;
   isMine: boolean;
   adjacent: number;
 }
@@ -31,21 +34,89 @@ export const DIFFICULTIES: Difficulty[] = [
   { label: 'Custom', width: 0, height: 0, mines: 0 },
 ];
 
-export function createBoard(width: number, height: number, mines: number): Cell[][] {
-  const board: Cell[][] = Array.from({ length: height }, () =>
-    Array.from({ length: width }, () => ({
+export function generateTerrain(width: number, height: number, difficulty: string): Terrain[][] {
+  // Real geography of the Strait of Hormuz region
+  // Persian Gulf to the west, Gulf of Oman to the east
+  // Key features: Iranian coast (north), Oman coast (south), UAE coast (southwest)
+  const terrain: Terrain[][] = Array.from({ length: height }, () =>
+    Array.from({ length: width }, () => 'water' as Terrain)
+  );
+
+  if (height < 6) return terrain;
+
+  // Iran coastline — northern edge with coves/indentations
+  const iranY = Math.max(1, Math.floor(height * 0.12));
+  for (let x = 0; x < width; x++) {
+    const jitter = Math.floor((Math.sin(x * 0.6 + width * 0.3) + 1) * 1.5);
+    const y = Math.min(iranY + jitter, height - 2);
+    terrain[y][x] = 'land';
+    // Occasional inland extension (mountains/jazireh)
+    if ((x % 7 === 0 || x % 11 === 3) && y + 1 < height) {
+      terrain[y + 1][x] = 'land';
+    }
+  }
+
+  // Oman/Ras Al Hadd — southern coast, eastern portion
+  const omanBaseY = Math.max(height - 4, Math.floor(height * 0.82));
+  for (let x = Math.floor(width * 0.55); x < width; x++) {
+    const jitter = Math.floor((Math.sin(x * 0.5 + 1) + 1) * 1.2);
+    const y = Math.max(omanBaseY - jitter, 1);
+    terrain[y][x] = 'land';
+    // Omani mountains extending inland
+    if (x % 9 === 0 && y > 1) {
+      terrain[y - 1][x] = 'land';
+    }
+  }
+
+  // UAE coast — southwestern portion, southern edge
+  for (let x = 0; x < Math.floor(width * 0.45); x++) {
+    const jitter = Math.floor((Math.sin(x * 0.4) + 1) * 1.5);
+    const y = Math.max(omanBaseY - jitter, 1);
+    terrain[y][x] = 'land';
+    if (x % 6 === 0 && y > 1) {
+      terrain[y - 1][x] = 'land';
+    }
+  }
+
+  // Islands — Qeshm (near strait entrance), Greater Tunb, Lesser Tunb, Sirri
+  const islands: [number, number, number, number][] = [
+    [Math.floor(width * 0.38), Math.floor(height * 0.38), 3, 2],  // Qeshm
+    [Math.floor(width * 0.52), Math.floor(height * 0.45), 2, 1],   // Greater Tunb
+    [Math.floor(width * 0.55), Math.floor(height * 0.42), 1, 1],  // Lesser Tunb
+    [Math.floor(width * 0.68), Math.floor(height * 0.35), 1, 1],  // Sirri
+  ];
+
+  for (const [ix, iy, iw, ih] of islands) {
+    for (let dy = 0; dy < ih && iy + dy < height; dy++) {
+      for (let dx = 0; dx < iw && ix + dx < width; dx++) {
+        if (ix + dx >= 0 && iy + dy >= 0) {
+          terrain[iy + dy][ix + dx] = 'land';
+        }
+      }
+    }
+  }
+
+  return terrain;
+}
+
+export function createBoard(width: number, height: number, mines: number, terrain?: Terrain[][]): Cell[][] {
+  const t = terrain ?? generateTerrain(width, height, '');
+
+  const board: Cell[][] = Array.from({ length: height }, (_, y) =>
+    Array.from({ length: width }, (_, x) => ({
       state: 'hidden' as CellState,
+      terrain: t[y][x],
       isMine: false,
       adjacent: 0,
     }))
   );
 
-  // Place mines randomly
+  // Place mines only on water
   let placed = 0;
   while (placed < mines) {
     const x = Math.floor(Math.random() * width);
     const y = Math.floor(Math.random() * height);
-    if (!board[y][x].isMine) {
+    if (!board[y][x].isMine && board[y][x].terrain === 'water') {
       board[y][x].isMine = true;
       placed++;
     }
@@ -90,6 +161,8 @@ export function floodFill(board: Cell[][], x: number, y: number): Cell[][] {
     visited.add(key);
 
     const cell = board[cy][cx];
+    // Don't auto-reveal land cells via flood fill — they get revealed on explicit click
+    if (cell.terrain === 'land') continue;
     if (cell.isMine || cell.state === 'revealed') continue;
 
     board[cy][cx].state = 'revealed';
