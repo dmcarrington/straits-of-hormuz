@@ -28,9 +28,9 @@ export type Difficulty = {
 };
 
 export const DIFFICULTIES: Difficulty[] = [
-  { label: 'Persian Gulf', width: 10, height: 10, mines: 15 },
-  { label: 'Gulf of Oman', width: 16, height: 16, mines: 40 },
-  { label: 'Strait of Hormuz', width: 20, height: 16, mines: 60 },
+  { label: 'Persian Gulf', width: 14, height: 14, mines: 14 },
+  { label: 'Gulf of Oman', width: 18, height: 18, mines: 28 },
+  { label: 'Strait of Hormuz', width: 24, height: 20, mines: 35 },
   { label: 'Custom', width: 0, height: 0, mines: 0 },
 ];
 
